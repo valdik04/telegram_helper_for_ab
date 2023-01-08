@@ -152,6 +152,7 @@ def clear_data(df: pd.DataFrame, column_group: str, column_value: str):
                 break
             elif str_val.isdigit():
                 df[column_value].fillna(float(str_val), inplace=True)
+                break
             # print('Введено неправильное значение, давай попробуем еще раз.')
     return df, message
 

@@ -38,7 +38,7 @@ METRIC_M, PATH_M, GROUP_COLUMN_M, VALUES_COLUMN_M = '', '', '', ''
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Start."""
-    reply_keyboard = [["CR", "ARPU", "ARPPU", "Discrete", "Continuous"]]
+    reply_keyboard = [["CTR", "ARPU", "ARPPU", "Discrete", "Continuous"]]
     await update.message.reply_text(
         "Hey! I will help you with A/B test. Tell me which metric we will track. Choose an answer from those offered. "
         "Send /cancel to stop talking to me.\n\n"
@@ -58,7 +58,7 @@ async def metric(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     METRIC_M = update.message.text
     logger.info("Metric of %s: %s", user.first_name, METRIC_M)
     await update.message.reply_text(
-        "I see! Please send me a path to file(google disk).",
+        "I see! Please send me a path to file on google disk.",
         reply_markup=ReplyKeyboardRemove(),
     )
     return PATH
@@ -71,7 +71,7 @@ async def path(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     PATH_M = update.message.text
     logger.info("Path of %s: %s", user.first_name, PATH_M)
     await update.message.reply_text(
-        "I see! Please send me a name group column.",
+        "I see! Please send me a name of a group column.",
         reply_markup=ReplyKeyboardRemove(),
     )
     return GROUP_COLUMN
@@ -84,7 +84,7 @@ async def group_column(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     GROUP_COLUMN_M = update.message.text
     logger.info("Group column of %s: %s", user.first_name, GROUP_COLUMN_M)
     await update.message.reply_text(
-        "I see! Please send me a name value column.",
+        "I see! Please send me a name of a value column.",
         reply_markup=ReplyKeyboardRemove(),
     )
     return VALUES_COLUMN
@@ -123,10 +123,12 @@ async def value_column(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     final_message = library_for_ab.get_conclusion(df, GROUP_COLUMN_M, VALUES_COLUMN_M, p_value)
     if p_value < 0.05:
         await update.message.reply_text(
-            'p_value: ' + str(p_value) + ' power: ' + str(power) + '. Differences are significant.')
+            'p_value: ' + str(p_value) + ' power: ' + str(power))
+        await update.message.reply_text(final_message)
     else:
         await update.message.reply_text(
-            'p_value: ' + str(p_value) + ' power: ' + str(power) + '. Differences are not significant.')
+            'p_value: ' + str(p_value) + ' power: ' + str(power))
+        await update.message.reply_text(final_message)
     return ConversationHandler.END
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -149,7 +151,7 @@ def main() -> None:
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            METRIC: [MessageHandler(filters.Regex("^(CR|ARPU|ARPPU|Discrete|Continuous)$"), metric)],
+            METRIC: [MessageHandler(filters.Regex("^(CTR|ARPU|ARPPU|Discrete|Continuous)$"), metric)],
             PATH: [MessageHandler(filters.Regex("(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})"), path)],
             GROUP_COLUMN: [MessageHandler(filters.TEXT & ~filters.COMMAND, group_column)],
             VALUES_COLUMN: [MessageHandler(filters.TEXT & ~filters.COMMAND, value_column)],
