@@ -96,10 +96,10 @@ def clear_data(df: pd.DataFrame, column_group: str, column_value: str):
     message = ''
 #   fix types
     if df[column_group].nunique() > 2:
-        message = f'Ошибка в данных: значений в стобце {column_group} больше 2.'
+        message = f'Error in the data: values in column {column_group} are more than 2.'
         return pd.DataFrame(), message
     elif df[column_group].nunique() < 2:
-        message = f'Ошибка в данных: значений в столбце {column_group} меньше 2.'
+        message = f'Error in the data: values in column {column_group} are less than 2.'
         return pd.DataFrame(), message
 
     if df[column_value].dtype == 'O':
@@ -113,18 +113,18 @@ def clear_data(df: pd.DataFrame, column_group: str, column_value: str):
     elif df[column_value].dtype == 'int64' or df[column_value].dtype == 'int32':
         df[column_value] = df[column_value].astype('float')
     elif df[column_value].dtype != 'float':
-        message = f'Ошибка в типе данных: столбец {column_value} имеет неверный формат.'
+        message = f'Error in the data record: column {column_value} values have the wrong format.'
         return pd.DataFrame(), message
     # работа с пропусками
     if df[column_group].isna().sum():
-        message += f"Процент пропущенных значений в столбце {column_group}" + \
+        message += f"Percentage of missing values in the column {column_group}" + \
                   str((df[column_group].isna().sum())/(df.shape[0]) * 100) + "%. "
         df.dropna(subset=[column_group], inplace=True)
-        message += f"Из столбца {column_group} были удалены пропущенные значения. "
+        message += f"Missing values have been removed from the {column_group} column."
 
     if df[column_value].isna().sum():
-        message += f"Процент пропущенных значений в столбце {column_value}"+ \
-                   str((df[column_value].isna().sum())/(df.shape[0]) * 100) + "%. "
+        message += f"Percentage of missing values in the column {column_value}"+ \
+                   str((df[column_value].isna().sum())/(df.shape[0]) * 100) + "%."
         # print(f"""Подскажите, что делать с пропущенными значениями в столбце {column_value}?
         # Введите (без кавычек):\n
         # 'del', если удалить\n
@@ -349,11 +349,11 @@ def get_conclusion(df: pd.DataFrame, name_column_group: str, name_column_metric:
     mean_group_2 = df_group_2[name_column_metric].mean()
     if p_val < 0.05:
         return f'''
-        Среднее в группе {name_1}: {mean_group_1}.
-        Среднее в группе {name_2}: {mean_group_2}.
-        Различия в средних статистически значимы.'''
+        Average in the group {name_1}: {mean_group_1}.
+        Average in the group {name_2}: {mean_group_2}.
+        The differences in the averages are statistically significant.'''
     else:
         return f'''
-        Среднее в группе {name_1}: {mean_group_1}.
-        Среднее в группе {name_2}: {mean_group_2}.
-        Различия в средних статистически незначимы.'''
+        Average in the group {name_1}: {mean_group_1}.
+        Average in the group {name_2}: {mean_group_2}.
+        Differences in the averages are statistically insignificant.'''
