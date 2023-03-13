@@ -14,14 +14,14 @@ def what_is_metric() -> str:
     :return: name metric
     """
     while True:
-        print("""Подскажи, какую метрику мы будем отслеживать. Выбери вариант ответа из предложенных. 
-        Введи число или слово STOP, если хочешь начать сначала.
-        1) CR(CTR и т.д) - конверсия
-        2) ARPU - средний чек
-        3) ARPPU - средний чек среди платящих пользователей
-        4) Номинативная - распределенно по группам
-        5) Количественная - непрерывные значения(выручка, количество пользователей и т.д)
-        """)
+        # print("""Подскажи, какую метрику мы будем отслеживать. Выбери вариант ответа из предложенных.
+        # Введи число или слово STOP, если хочешь начать сначала.
+        # 1) CR(CTR и т.д) - конверсия
+        # 2) ARPU - средний чек
+        # 3) ARPPU - средний чек среди платящих пользователей
+        # 4) Номинативная - распределенно по группам
+        # 5) Количественная - непрерывные значения(выручка, количество пользователей и т.д)
+        # """)
         number = int(input())
         if number == 'STOP':
             return 'STOP'
@@ -43,12 +43,12 @@ def get_sigma(metric: str) -> float:
     :param metric: name metric
     :return: standard deviation
     """
-    if metric == 'CR' or metric == 'discrete':
-        print("Введите базовое значение (конверсии)")
+    if metric == 'CR' or metric == 'Discrete':
+        # print("Введите базовое значение (конверсии)")
         p = float(input())
         return (p*(1-p))**0.5
     else:
-        print("Введите стандартное отклонение(std)")
+        # print("Введите стандартное отклонение(std)")
         std = float(input())
         return std
 
@@ -96,10 +96,10 @@ def clear_data(df: pd.DataFrame, column_group: str, column_value: str):
     message = ''
 #   fix types
     if df[column_group].nunique() > 2:
-        message = f'Error in the data: values in column {column_group} are more than 2.'
+        message = f'Ошибка в записи данных: значений в столбце {column_group} больше 2-х.'
         return pd.DataFrame(), message
     elif df[column_group].nunique() < 2:
-        message = f'Error in the data: values in column {column_group} are less than 2.'
+        message = f'Ошибка в записи данных: значений в столбце {column_group} меньше 2-х.'
         return pd.DataFrame(), message
 
     if df[column_value].dtype == 'O':
@@ -107,23 +107,23 @@ def clear_data(df: pd.DataFrame, column_group: str, column_value: str):
             df[column_value] = df[column_value].dropna().apply(lambda x: x.replace(',', '.'))
             df[column_value] = df[column_value].astype('float')
         except:
-            message = f'Ошибка в записе данных: значения столбца {column_value} имеют неверный формат.'
+            message = f'Ошибка в записи данных: значения столбца {column_value} имеют неверный формат.'
             return pd.DataFrame(), message
 
     elif df[column_value].dtype == 'int64' or df[column_value].dtype == 'int32':
         df[column_value] = df[column_value].astype('float')
     elif df[column_value].dtype != 'float':
-        message = f'Error in the data record: column {column_value} values have the wrong format.'
+        message = f'Ошибка в записи данных: значения столбца {column_value} имеют неверный формат.'
         return pd.DataFrame(), message
     # работа с пропусками
     if df[column_group].isna().sum():
-        message += f"Percentage of missing values in the column {column_group}" + \
-                  str((df[column_group].isna().sum())/(df.shape[0]) * 100) + "%. "
+        message += f"Процент пропущенных значений в столбце {column_group} " + \
+                  str((df[column_group].isna().sum())/(df.shape[0]) * 100) + "%."
         df.dropna(subset=[column_group], inplace=True)
-        message += f"Missing values have been removed from the {column_group} column."
+        message += f"Пропущенные значения были удалены из столбца {column_group}."
 
     if df[column_value].isna().sum():
-        message += f"Percentage of missing values in the column {column_value}"+ \
+        message += f"Процент пропущенных значений в столбце {column_value} " + \
                    str((df[column_value].isna().sum())/(df.shape[0]) * 100) + "%."
         # print(f"""Подскажите, что делать с пропущенными значениями в столбце {column_value}?
         # Введите (без кавычек):\n
@@ -137,21 +137,27 @@ def clear_data(df: pd.DataFrame, column_group: str, column_value: str):
             str_val = '0'
             if str_val == 'del':
                 df[column_value] = df[column_value].dropna()
+                message += "\nПропущенные значения были удалены."
                 break
             elif str_val == 'min':
                 df[column_value].fillna(df[column_value].min(), inplace=True)
+                message += "\nПропущенные значения были заменены на минимальное."
                 break
             elif str_val == 'max':
                 df[column_value].fillna(df[column_value].max(), inplace=True)
+                message += "\nПропущенные значения были заменены на максимальное."
                 break
             elif str_val == 'avg':
                 df[column_value].fillna(df[column_value].mean(), inplace=True)
+                message += "\nПропущенные значения были заменены на среднее."
                 break
             elif str_val == 'median':
                 df[column_value].fillna(df[column_value].median(), inplace=True)
+                message += "\nПропущенные значения были заменены на медиану."
                 break
             elif str_val.isdigit():
                 df[column_value].fillna(float(str_val), inplace=True)
+                message += f"\nПропущенные значения были заменены на {str_val}."
                 break
             # print('Введено неправильное значение, давай попробуем еще раз.')
     return df, message
@@ -186,6 +192,8 @@ def get_and_change_outliers(data: pd.DataFrame, name_column_metric: str, n='0'):
 
     outliers = list(data[(data[name_column_metric] < x_1) | (data[name_column_metric] > x_2)][name_column_metric])
     data_outliers = data[data[name_column_metric].isin(outliers)]
+    message = ''
+    message += '\nПроцент выбросов ' + str(round(data_outliers.shape[0] / (data.shape[0]) * 100, 2)) + "%."
     if data_outliers.shape[0] > 0:
         # print("""Есть выбросы. Подскажи, что мне с ними сделать?
         # Введите номер варианта:
@@ -201,28 +209,31 @@ def get_and_change_outliers(data: pd.DataFrame, name_column_metric: str, n='0'):
             if n != '1' and n != '2' and n != '3' and n != '4' and n != '5' and n != 'STOP':
                 n = '5'
             if n == 'STOP':
-                return pd.DataFrame(), n
+                return pd.DataFrame(), n, message
             if n == '1':
-                return data[~data[name_column_metric].isin(outliers)], n
+                message += "\nВыбросы были удалены."
+                return data[~data[name_column_metric].isin(outliers)], n, message
             if n == '2':
                 data[name_column_metric] = data[name_column_metric].\
                     apply(lambda x: min_value if x < min_value else max_value if x > max_value else x)
-                return data, n
+                message += "\nВыбросы были заменены на максимальное и минимальное значение."
+                return data, n, message
             if n == '3':
                 mean_value = data[~data[name_column_metric].isin(outliers)][name_column_metric].mean()
                 data[name_column_metric] = data[name_column_metric].\
                     apply(lambda x: mean_value if x < min_value else mean_value if x > max_value else x)
-                return data, n
+                message += "\nВыбросы были заменены на среднее."
+                return data, n, message
             if n == '4':
                 median_value = data[~data[name_column_metric].isin(outliers)][name_column_metric].median()
                 data[name_column_metric] = data[name_column_metric].\
                     apply(lambda x: median_value if x < min_value else median_value if x > max_value else x)
-                return data, n
+                message += "\nВыбросы были заменены на медиану."
+                return data, n, message
             if n == '5':
-                return data, n
-            print('Введено неправильное значение, давай попробуем еще раз.')
+                return data, n, message
     else:
-        return data, '00'
+        return data, '00', message
 
 
 def get_bootstrap(
@@ -298,39 +309,60 @@ def get_p_value(metric: str, df: pd.DataFrame, name_column_group: str, name_colu
     name_2 = group_names[1]
     df_group_1 = df[df[name_column_group] == name_1]
     df_group_2 = df[df[name_column_group] == name_2]
+    message = ""
     if metric == 'CR' or metric == 'Discrete':
         _, _, stats = pg.chi2_independence(df, x=name_column_group, y=name_column_metric)
         p_value = stats.round(3).query('test == "pearson"')['pval'][0]
         power = stats.round(3).query('test == "pearson"')['power'][0]
-        return p_value, power
+        return p_value, power, message, df
     if metric == 'ARPU' or metric == 'ARPPU' or metric == 'Continuous':
         if metric == 'ARPPU':
             df_group_1 = df_group_1[df_group_1[name_column_metric] > 0]
             df_group_2 = df_group_2[df_group_2[name_column_metric] > 0]
         distribution = 'normal'
-        df_group_fix_outliers_1, outliers_choice_1 = get_and_change_outliers(df_group_1, name_column_metric)
-        df_group_outliers_2, outliers_choice_2 = get_and_change_outliers(df_group_2, name_column_metric,
-                                                                         n=outliers_choice_1)
+        # print("""Есть выбросы. Подскажи, что мне с ними сделать?
+        # Введите номер варианта:
+        # 1) Удалить выбросы;
+        # 2) Заменить на максимальные и минимальные значение;
+        # 3) Заменить на среднее;
+        # 4) Заменить на медиану;
+        # 5) Оставить выбросы
+        # """)
+        what_outliers = "5"
+        df_group_1, outliers_choice_1, m = get_and_change_outliers(df_group_1, name_column_metric, what_outliers)
+        message += f'\nГруппа {name_1}' + m
+        df_group_2, outliers_choice_2, m = get_and_change_outliers(df_group_2, name_column_metric, outliers_choice_1)
+        message += f'\nГруппа {name_2}' + m
+        df = pd.concat([df_group_1, df_group_2])
         for gr in group_names:
             df_group = df[df[name_column_group] == gr]
             p_val_shapiro = shapiro(df_group[name_column_metric]).pvalue
             if p_val_shapiro < 0.05:
                 distribution = 'abnormal'
                 break
+        if distribution == 'normal':
+            message += '\nДанные в группах из нормального распределения'
+        else:
+            message += '\nДанные в группах не из нормального распределения'
         dispersion = 'equal'
         if distribution == 'normal':
             if f_test(df_group_1[name_column_metric], df_group_2[name_column_metric]) < 0.05:
                 dispersion = 'unequal'
+        if dispersion == 'equal':
+            message += '\nДисперсии в группах равны'
+        else:
+            message += '\nДисперсии в группах различны'
         if distribution == 'normal' and dispersion == 'equal' and outliers_choice_1 != '5' and outliers_choice_2 != '5':
             t_test_result = pg.ttest(df[df[name_column_group] == name_1][name_column_metric],
                                      df[df[name_column_group] == name_2][name_column_metric])
-            return t_test_result['p-val'][0], t_test_result['power'][0]
+            return round(t_test_result['p-val'][0], 4), round(t_test_result['power'][0], 4), message, df
         if outliers_choice_1 != '5' and outliers_choice_2 != '5':
-            return get_bootstrap(df_group_1[name_column_metric], df_group_2[name_column_metric])['p_value']
+            return round(get_bootstrap(df_group_1[name_column_metric],
+                                       df_group_2[name_column_metric])['p_value'], 4), round(np.nan, 4), message, df
         else:
             p_val = pg.mwu(df_group_1[name_column_metric], df_group_2[name_column_metric],
                            alternative='two-sided')['p-val'][0]
-            return p_val, np.nan
+            return round(p_val, 4), round(np.nan, 4), message, df
 
 
 def get_conclusion(df: pd.DataFrame, name_column_group: str, name_column_metric: str, p_val: float):
@@ -348,12 +380,6 @@ def get_conclusion(df: pd.DataFrame, name_column_group: str, name_column_metric:
     mean_group_1 = df_group_1[name_column_metric].mean()
     mean_group_2 = df_group_2[name_column_metric].mean()
     if p_val < 0.05:
-        return f'''
-        Average in the group {name_1}: {mean_group_1}.
-        Average in the group {name_2}: {mean_group_2}.
-        The differences in the averages are statistically significant.'''
+        return f'''Среднее в группе {name_1}: {mean_group_1}.\nСреднее в группе {name_2}: {mean_group_2}.\nРазличия в средних статистически значимы.'''
     else:
-        return f'''
-        Average in the group {name_1}: {mean_group_1}.
-        Average in the group {name_2}: {mean_group_2}.
-        Differences in the averages are statistically insignificant.'''
+        return f'''Среднее в группе {name_1}: {mean_group_1}.\nСреднее в группе {name_2}: {mean_group_2}.\nРазличия в средних статистически незначимы.'''

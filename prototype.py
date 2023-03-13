@@ -38,11 +38,15 @@ METRIC_M, PATH_M, GROUP_COLUMN_M, VALUES_COLUMN_M = '', '', '', ''
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Start."""
-    reply_keyboard = [["CTR", "ARPU", "ARPPU", "Discrete", "Continuous"]]
+    reply_keyboard = [["CR", "ARPU", "ARPPU", "Discrete", "Continuous"]]
     await update.message.reply_text(
-        "Hey! I will help you with A/B test. Tell me which metric we will track. Choose an answer from those offered. "
-        "Send /cancel to stop talking to me.\n\n"
-        "Choose a metric",
+        "Привет! Я помогу тебе с A/B тестом. Скажи мне, какую метрику мы будем отслеживать.\n"
+        "Отправь /cancel чтобы прекратить общение со мной.\n\n"
+        "CR - метрика конверсии, обычно принимает два значение(да/нет)\n\n"
+        "ARPU - средний чек\n\n"
+        "ARPPU - средний чек среди платящих пользователей\n\n"
+        "Discrete - данные, которые можно разбить на классы(пол, цвет глаз и т.д)\n\n"
+        "Continuous - непрерывные данные(рост, вес и т.д)",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=True, input_field_placeholder="Metric?"
         ),
@@ -58,7 +62,7 @@ async def metric(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     METRIC_M = update.message.text
     logger.info("Metric of %s: %s", user.first_name, METRIC_M)
     await update.message.reply_text(
-        "I see! Please send me a path to file on google disk.",
+        "Пожалуйста, пришлите мне ссылку на файл на гугл диске.",
         reply_markup=ReplyKeyboardRemove(),
     )
     return PATH
@@ -71,7 +75,7 @@ async def path(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     PATH_M = update.message.text
     logger.info("Path of %s: %s", user.first_name, PATH_M)
     await update.message.reply_text(
-        "I see! Please send me a name of a group column.",
+        "Пожалуйста, напишите мне название колонки с группами.",
         reply_markup=ReplyKeyboardRemove(),
     )
     return GROUP_COLUMN
@@ -84,7 +88,7 @@ async def group_column(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     GROUP_COLUMN_M = update.message.text
     logger.info("Group column of %s: %s", user.first_name, GROUP_COLUMN_M)
     await update.message.reply_text(
-        "I see! Please send me a name of a value column.",
+        "Пожалуйста, напишите мне название колонки со значениями.",
         reply_markup=ReplyKeyboardRemove(),
     )
     return VALUES_COLUMN
@@ -111,23 +115,31 @@ async def value_column(update: Update, context: ContextTypes.DEFAULT_TYPE) -> in
     url = PATH_M
     url = 'https://drive.google.com/uc?id=' + url.split('/')[-2]
     df = pd.read_csv(url)
+    if GROUP_COLUMN_M not in df.columns:
+        await update.message.reply_text('Неверное название колонки с группами. Необходимо начать сначала.')
+        return ConversationHandler.END
+    if VALUES_COLUMN_M not in df.columns:
+        await update.message.reply_text('Неверное название колонки со значениями. Необходимо начать сначала.')
+        return ConversationHandler.END
     df_clear = library_for_ab.clear_data(df, GROUP_COLUMN_M, VALUES_COLUMN_M)
     df = df_clear[0]
     message = df_clear[1]
     if df.shape[0] == 0:
-        await update.message.reply_text(message + ' Restart')
+        await update.message.reply_text(message + ' Необходимо начать сначала.')
         return ConversationHandler.END
-    await update.message.reply_text(message + ' Continue.')
-
-    p_value, power = library_for_ab.get_p_value(METRIC_M, df, GROUP_COLUMN_M, VALUES_COLUMN_M)
+    p_value, power, message, df = library_for_ab.get_p_value(METRIC_M, df, GROUP_COLUMN_M, VALUES_COLUMN_M)
+    try:
+        await update.message.reply_text(message)
+    except:
+        pass
     final_message = library_for_ab.get_conclusion(df, GROUP_COLUMN_M, VALUES_COLUMN_M, p_value)
     if p_value < 0.05:
-        await update.message.reply_text(
-            'p_value: ' + str(p_value) + ' power: ' + str(power))
+        await update.message.reply_text(message+'\n'
+            'p_value: ' + str(p_value) + ' мощность: ' + str(power))
         await update.message.reply_text(final_message)
     else:
         await update.message.reply_text(
-            'p_value: ' + str(p_value) + ' power: ' + str(power))
+            'p_value: ' + str(p_value) + ' мощность: ' + str(power))
         await update.message.reply_text(final_message)
     return ConversationHandler.END
 
@@ -136,7 +148,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     user = update.message.from_user
     logger.info("User %s canceled the conversation.", user.first_name)
     await update.message.reply_text(
-        "Bye! I hope we can talk again some day.", reply_markup=ReplyKeyboardRemove()
+        "Пока!", reply_markup=ReplyKeyboardRemove()
     )
 
     return ConversationHandler.END
@@ -151,7 +163,7 @@ def main() -> None:
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            METRIC: [MessageHandler(filters.Regex("^(CTR|ARPU|ARPPU|Discrete|Continuous)$"), metric)],
+            METRIC: [MessageHandler(filters.Regex("^(CR|ARPU|ARPPU|Discrete|Continuous)$"), metric)],
             PATH: [MessageHandler(filters.Regex("(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})"), path)],
             GROUP_COLUMN: [MessageHandler(filters.TEXT & ~filters.COMMAND, group_column)],
             VALUES_COLUMN: [MessageHandler(filters.TEXT & ~filters.COMMAND, value_column)],
