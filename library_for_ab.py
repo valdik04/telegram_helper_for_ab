@@ -378,6 +378,6 @@ def get_conclusion(df: pd.DataFrame, name_column_group: str, name_column_metric:
     mean_group_1 = df_group_1[name_column_metric].mean()
     mean_group_2 = df_group_2[name_column_metric].mean()
     if p_val < 0.05:
-        return f'''Среднее в группе {name_1}: {mean_group_1}.\nСреднее в группе {name_2}: {mean_group_2}.\nРазличия в средних статистически значимы.'''
+        return f'''Среднее в группе {name_1}: {round(mean_group_1, 4)}.\nСреднее в группе {name_2}: {round(mean_group_2, 4)}.\nРазличия в средних статистически значимы.'''
     else:
-        return f'''Среднее в группе {name_1}: {mean_group_1}.\nСреднее в группе {name_2}: {mean_group_2}.\nРазличия в средних статистически незначимы.'''
+        return f'''Среднее в группе {name_1}: {round(mean_group_1, 4)}.\nСреднее в группе {name_2}: {round(mean_group_2, 4)}.\nРазличия в средних статистически незначимы.'''
