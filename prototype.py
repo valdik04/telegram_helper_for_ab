@@ -38,15 +38,13 @@ METRIC_M, PATH_M, GROUP_COLUMN_M, VALUES_COLUMN_M = '', '', '', ''
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     """Start."""
-    reply_keyboard = [["CR", "ARPU", "ARPPU", "Discrete", "Continuous"]]
+    reply_keyboard = [[ "Discrete", "Continuous", 'Ranking']]
     await update.message.reply_text(
         "Привет! Я помогу тебе с A/B тестом. Скажи мне, какую метрику мы будем отслеживать.\n"
         "Отправь /cancel чтобы прекратить общение со мной.\n\n"
-        "CR - метрика конверсии, обычно принимает два значение(да/нет)\n\n"
-        "ARPU - средний чек\n\n"
-        "ARPPU - средний чек среди платящих пользователей\n\n"
         "Discrete - данные, которые можно разбить на классы(пол, цвет глаз и т.д)\n\n"
-        "Continuous - непрерывные данные(рост, вес и т.д)",
+        "Continuous - непрерывные данные(рост, вес и т.д)\n\n"
+        "Ranking - ранговые данные(место в соревновании)",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=True, input_field_placeholder="Metric?"
         ),
@@ -163,7 +161,7 @@ def main() -> None:
     conv_handler = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
         states={
-            METRIC: [MessageHandler(filters.Regex("^(CR|ARPU|ARPPU|Discrete|Continuous)$"), metric)],
+            METRIC: [MessageHandler(filters.Regex("^(Discrete|Continuous|Ranking)$"), metric)],
             PATH: [MessageHandler(filters.Regex("(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]+\.[^\s]{2,}|www\.[a-zA-Z0-9]+\.[^\s]{2,})"), path)],
             GROUP_COLUMN: [MessageHandler(filters.TEXT & ~filters.COMMAND, group_column)],
             VALUES_COLUMN: [MessageHandler(filters.TEXT & ~filters.COMMAND, value_column)],

@@ -9,33 +9,33 @@ from scipy.stats import norm
 import matplotlib as plt
 
 
-def what_is_metric() -> str:
-    """
-    :return: name metric
-    """
-    while True:
-        # print("""Подскажи, какую метрику мы будем отслеживать. Выбери вариант ответа из предложенных.
-        # Введи число или слово STOP, если хочешь начать сначала.
-        # 1) CR(CTR и т.д) - конверсия
-        # 2) ARPU - средний чек
-        # 3) ARPPU - средний чек среди платящих пользователей
-        # 4) Номинативная - распределенно по группам
-        # 5) Количественная - непрерывные значения(выручка, количество пользователей и т.д)
-        # """)
-        number = int(input())
-        if number == 'STOP':
-            return 'STOP'
-        if number == 1:
-            return 'CR'
-        if number == 2:
-            return 'ARPU'
-        if number == 3:
-            return 'ARPPU'
-        if number == 4:
-            return 'discrete'
-        if number == 5:
-            return 'continuous'
-        print('Нет, такого варианта. Давай еще раз.')
+# def what_is_metric() -> str:
+#     """
+#     :return: name metric
+#     """
+#     while True:
+#         # print("""Подскажи, какую метрику мы будем отслеживать. Выбери вариант ответа из предложенных.
+#         # Введи число или слово STOP, если хочешь начать сначала.
+#         # 1) CR(CTR и т.д) - конверсия
+#         # 2) ARPU - средний чек
+#         # 3) ARPPU - средний чек среди платящих пользователей
+#         # 4) Номинативная - распределенно по группам
+#         # 5) Количественная - непрерывные значения(выручка, количество пользователей и т.д)
+#         # """)
+#         number = int(input())
+#         if number == 'STOP':
+#             return 'STOP'
+#         if number == 1:
+#             return 'CR'
+#         if number == 2:
+#             return 'ARPU'
+#         if number == 3:
+#             return 'ARPPU'
+#         if number == 4:
+#             return 'discrete'
+#         if number == 5:
+#             return 'continuous'
+#         print('Нет, такого варианта. Давай еще раз.')
 
 
 def get_sigma(metric: str) -> float:
@@ -310,15 +310,13 @@ def get_p_value(metric: str, df: pd.DataFrame, name_column_group: str, name_colu
     df_group_1 = df[df[name_column_group] == name_1]
     df_group_2 = df[df[name_column_group] == name_2]
     message = ""
-    if metric == 'CR' or metric == 'Discrete':
+    if metric == 'Discrete':
         _, _, stats = pg.chi2_independence(df, x=name_column_group, y=name_column_metric)
         p_value = stats.round(3).query('test == "pearson"')['pval'][0]
         power = stats.round(3).query('test == "pearson"')['power'][0]
         return p_value, power, message, df
-    if metric == 'ARPU' or metric == 'ARPPU' or metric == 'Continuous':
-        if metric == 'ARPPU':
-            df_group_1 = df_group_1[df_group_1[name_column_metric] > 0]
-            df_group_2 = df_group_2[df_group_2[name_column_metric] > 0]
+
+    if metric == 'Continuous' or metric == 'Ranking':
         distribution = 'normal'
         # print("""Есть выбросы. Подскажи, что мне с ними сделать?
         # Введите номер варианта:
@@ -352,11 +350,11 @@ def get_p_value(metric: str, df: pd.DataFrame, name_column_group: str, name_colu
             message += '\nДисперсии в группах равны'
         else:
             message += '\nДисперсии в группах различны'
-        if distribution == 'normal' and dispersion == 'equal' and outliers_choice_1 != '5' and outliers_choice_2 != '5':
+        if metric != 'Ranking' and distribution == 'normal' and dispersion == 'equal' and outliers_choice_1 != '5' and outliers_choice_2 != '5':
             t_test_result = pg.ttest(df[df[name_column_group] == name_1][name_column_metric],
                                      df[df[name_column_group] == name_2][name_column_metric])
             return round(t_test_result['p-val'][0], 4), round(t_test_result['power'][0], 4), message, df
-        if outliers_choice_1 != '5' and outliers_choice_2 != '5':
+        if metric != 'Ranking' and outliers_choice_1 != '5' and outliers_choice_2 != '5':
             return round(get_bootstrap(df_group_1[name_column_metric],
                                        df_group_2[name_column_metric])['p_value'], 4), round(np.nan, 4), message, df
         else:
