@@ -6,8 +6,9 @@ import pingouin as pg
 import scipy.stats as scs
 from scipy.stats import shapiro
 from scipy.stats import norm
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import math
+import seaborn as sns
 
 
 def get_sigma(metric: str, p:float, std:pd.DataFrame) -> float:
@@ -78,6 +79,20 @@ def calculate_sample_size(delta, sigma, alpha=0.05, beta=0.8,  ratio=1):
     # Округление до ближайшего целого числа и возвращение результата
     return math.ceil(n1), math.ceil(n2)
 
+def clear_data_group_columns(df: pd.DataFrame, column_group: str):
+    message = ''
+    if df[column_group].nunique() > 2:
+        message = f'Ошибка в записи данных: значений в столбце {column_group} больше 2-х.'
+        return pd.DataFrame(), message
+    elif df[column_group].nunique() < 2:
+        message = f'Ошибка в записи данных: значений в столбце {column_group} меньше 2-х.'
+        return pd.DataFrame(), message
+    if df[column_group].isna().sum():
+        message += f"Процент пропущенных значений в столбце {column_group} " + \
+                  str((df[column_group].isna().sum())/(df.shape[0]) * 100) + "%."
+        df.dropna(subset=[column_group], inplace=True)
+        message += f"Пропущенные значения были удалены из столбца {column_group}."
+    return df, message
 
 def clear_data(df: pd.DataFrame, column_group: str, column_value: str):
     """
@@ -88,12 +103,6 @@ def clear_data(df: pd.DataFrame, column_group: str, column_value: str):
     """
     message = ''
 #   fix types
-    if df[column_group].nunique() > 2:
-        message = f'Ошибка в записи данных: значений в столбце {column_group} больше 2-х.'
-        return pd.DataFrame(), message
-    elif df[column_group].nunique() < 2:
-        message = f'Ошибка в записи данных: значений в столбце {column_group} меньше 2-х.'
-        return pd.DataFrame(), message
 
     if df[column_value].dtype == 'O':
         try:
@@ -110,12 +119,7 @@ def clear_data(df: pd.DataFrame, column_group: str, column_value: str):
         return pd.DataFrame(), message
     # работа с пропусками
     
-    if df[column_group].isna().sum():
-        message += f"Процент пропущенных значений в столбце {column_group} " + \
-                  str((df[column_group].isna().sum())/(df.shape[0]) * 100) + "%."
-        df.dropna(subset=[column_group], inplace=True)
-        message += f"Пропущенные значения были удалены из столбца {column_group}."
-
+    
     if df[column_value].isna().sum():
         message += f"Процент пропущенных значений в столбце {column_value} " + \
                    str((df[column_value].isna().sum())/(df.shape[0]) * 100) + "%."
@@ -129,25 +133,25 @@ def clear_data(df: pd.DataFrame, column_group: str, column_value: str):
     have_missing = df[column_value].isna().sum() > 0
     return df, message, have_missing
 
-def missing_values(df: pd.DataFrame, column_group: str, column_value: str, decision='del'):
+def missing_values(df: pd.DataFrame, column_group: str, column_value: str, str_val='del'):
     message = ''
-    if str_val == 'del':
+    if str_val == 'Удалить':
         df[column_value] = df[column_value].dropna()
         message += "Пропущенные значения были удалены."
-    elif str_val == 'min':
-        df[column_value].fillna(df[column_value].min(), inplace=True)
+    elif str_val == 'Минимальное':
+        df[column_value] = df[column_value].fillna(df[column_value].min())
         message += "Пропущенные значения были заменены на минимальное."
-    elif str_val == 'max':
-        df[column_value].fillna(df[column_value].max(), inplace=True)
+    elif str_val == 'Максимальное':
+        df[column_value] = df[column_value].fillna(df[column_value].max())
         message += "Пропущенные значения были заменены на максимальное."
-    elif str_val == 'avg':
-        df[column_value].fillna(df[column_value].mean(), inplace=True)
+    elif str_val == 'Среднее':
+        df[column_value] = df[column_value].fillna(df[column_value].mean())
         message += "Пропущенные значения были заменены на среднее."
-    elif str_val == 'median':
-        df[column_value].fillna(df[column_value].median(), inplace=True)
+    elif str_val == 'Медиану':
+        df[column_value] = df[column_value].fillna(df[column_value].median())
         message += "Пропущенные значения были заменены на медиану."
     elif str_val.isdigit():
-        df[column_value].fillna(float(str_val), inplace=True)
+        df[column_value] = df[column_value].fillna(float(str_val))
         message += f"Пропущенные значения были заменены на {str_val}."
     return df, message
 
@@ -174,10 +178,10 @@ def get_outliers(data: pd.DataFrame, name_column_metric: str):
     :param n: choice for outliers
     :return: DataFrame with fix outliers
     """
-    x_1 = data.quantile(0.25)[name_column_metric] - 1.5 * (
-            data.quantile(0.75)[name_column_metric] - data.quantile(0.25)[name_column_metric])
-    x_2 = data.quantile(0.75)[name_column_metric] + 1.5 * (
-                data.quantile(0.75)[name_column_metric] - data.quantile(0.25)[name_column_metric])
+    x_1 = data[name_column_metric].quantile(0.25) - 1.5 * (
+            data[name_column_metric].quantile(0.75) - data[name_column_metric].quantile(0.25))
+    x_2 = data[name_column_metric].quantile(0.75) + 1.5 * (
+                data[name_column_metric].quantile(0.75) - data[name_column_metric].quantile(0.25))
 
     outliers = list(data[(data[name_column_metric] < x_1) | (data[name_column_metric] > x_2)][name_column_metric])
     data_outliers = data[data[name_column_metric].isin(outliers)]
@@ -199,11 +203,10 @@ def change_outliers(df: pd.DataFrame, name_column_metric: str, name_column_group
     df_result = pd.DataFrame()
     for group in df[name_column_group].unique():
         data = df[df[name_column_group] == group]
-        x_1 = data.quantile(0.25)[name_column_metric] - 1.5 * (
-                data.quantile(0.75)[name_column_metric] - data.quantile(0.25)[name_column_metric])
-        x_2 = data.quantile(0.75)[name_column_metric] + 1.5 * (
-                    data.quantile(0.75)[name_column_metric] - data.quantile(0.25)[name_column_metric])
-
+        x_1 = data[name_column_metric].quantile(0.25) - 1.5 * (
+            data[name_column_metric].quantile(0.75) - data[name_column_metric].quantile(0.25))
+        x_2 = data[name_column_metric].quantile(0.75) + 1.5 * (
+                data[name_column_metric].quantile(0.75) - data[name_column_metric].quantile(0.25))
         outliers = list(data[(data[name_column_metric] < x_1) | (data[name_column_metric] > x_2)][name_column_metric])
         max_value = data[~data[name_column_metric].isin(outliers)][name_column_metric].max()
         min_value = data[~data[name_column_metric].isin(outliers)][name_column_metric].min()
@@ -236,7 +239,7 @@ def change_outliers(df: pd.DataFrame, name_column_metric: str, name_column_group
 def get_bootstrap(
     data_column_1,  # числовые значения первой выборки
     data_column_2,  # числовые значения второй выборки
-    boot_it=2000,  # количество бутстрап-подвыборок
+    boot_it=5000,  # количество бутстрап-подвыборок
     statistic=np.mean,  # интересующая нас статистика
     bootstrap_conf_level=0.95  # уровень значимости
 ):
@@ -311,7 +314,7 @@ def get_p_value(metric: str, df: pd.DataFrame, name_column_group: str, name_colu
         _, _, stats = pg.chi2_independence(df, x=name_column_group, y=name_column_metric)
         p_value = stats.round(3).query('test == "pearson"')['pval'][0]
         power = stats.round(3).query('test == "pearson"')['power'][0]
-        return p_value, power, message, df
+        return p_value, power, message
 
     if metric == 'Continuous' or metric == 'Ranking':
         distribution = 'normal'
@@ -336,31 +339,125 @@ def get_p_value(metric: str, df: pd.DataFrame, name_column_group: str, name_colu
         if metric != 'Ranking' and distribution == 'normal' and dispersion == 'equal' and not have_outliers:
             t_test_result = pg.ttest(df[df[name_column_group] == name_1][name_column_metric],
                                      df[df[name_column_group] == name_2][name_column_metric])
-            return round(t_test_result['p-val'][0], 4), round(t_test_result['power'][0], 4), message, df
+            return round(t_test_result['p-val'][0], 4), round(t_test_result['power'][0], 4), message
         if metric != 'Ranking':
             return round(get_bootstrap(df_group_1[name_column_metric],
-                                       df_group_2[name_column_metric])['p_value'], 4), round(np.nan, 4), message, df
+                                       df_group_2[name_column_metric])['p_value'], 4), round(np.nan, 4), message
         else:
             p_val = pg.mwu(df_group_1[name_column_metric], df_group_2[name_column_metric],
                            alternative='two-sided')['p-val'][0]
-            return round(p_val, 4), round(np.nan, 4), message, df
+            return round(p_val, 4), round(np.nan, 4), message
 
+def get_hist(df: pd.DataFrame, name_column_group: str, name_column_metric: str, type_metric: str):
+    binwidth = 0
+    if type_metric == 'Continuous':
+        for group in df[name_column_group].unique():
+            binwidth = np.max([binwidth, 2*(df[df[name_column_group]==group][name_column_metric].quantile(0.75) - df[df[name_column_group]==group][name_column_metric].quantile(0.25))/df[df[name_column_group]==group].shape[0]**(1/3)])
+        
+        fig, ax = plt.subplots(figsize=(5, 4))
+        image = sns.histplot(data = df, x=name_column_metric, hue=name_column_group, binwidth=binwidth, stat='density', common_norm=False, ax=ax).get_figure()
+        plt.title(f"Гистограмма плотности для {name_column_metric}")
+        plt.close(image)
+        
+    if type_metric == 'Discrete':
+        pct2 = (df.groupby([name_column_group, name_column_metric]).size() / df.groupby([name_column_group]).size()).reset_index().rename({0:'Процент'}, axis=1)
+        fig, ax = plt.subplots(figsize=(5, 4))
+        image = sns.barplot(x=name_column_metric, hue=name_column_group, y='Процент', data=pct2, ax=ax).get_figure()
+        plt.title(f"Barplot для {name_column_metric}")
+        plt.figure(figsize=(5,4))
+        plt.close(image)
+        
+    if type_metric == 'Ranking':
+        pass
+    return image
 
-def get_conclusion(df: pd.DataFrame, name_column_group: str, name_column_metric: str, p_val: float):
-    """
-    :param df: DataFrame
-    :param name_column_group: name column group
-    :param name_column_metric: name column metric
-    :param p_val: p_value
-    """
-    group_names = list(df[name_column_group].unique())
-    name_1 = group_names[0]
-    name_2 = group_names[1]
-    df_group_1 = df[df[name_column_group] == name_1]
-    df_group_2 = df[df[name_column_group] == name_2]
-    mean_group_1 = df_group_1[name_column_metric].mean()
-    mean_group_2 = df_group_2[name_column_metric].mean()
-    if p_val < 0.05:
-        return f'''Среднее в группе {name_1}: {round(mean_group_1, 4)}.\nСреднее в группе {name_2}: {round(mean_group_2, 4)}.\nРазличия в средних статистически значимы.'''
-    else:
-        return f'''Среднее в группе {name_1}: {round(mean_group_1, 4)}.\nСреднее в группе {name_2}: {round(mean_group_2, 4)}.\nРазличия в средних статистически незначимы.'''
+def get_kde(df: pd.DataFrame, name_column_group: str, name_column_metric: str):
+    fig, ax = plt.subplots(figsize=(5, 4))
+    image = sns.histplot(x=name_column_metric, data=df, hue=name_column_group, bins=len(df), stat="density",
+      element="step", fill=False, cumulative=True, common_norm=False, ax=ax).get_figure()
+    plt.title(f"Ядерная оценка плотности для {name_column_metric}")
+    plt.figure(figsize=(5,4))
+    plt.close(image)
+    return image
+
+def get_qq(df: pd.DataFrame, name_column_group: str, name_column_metric: str):
+    values = df[name_column_metric].values
+    df_pct = pd.DataFrame()
+    for group in df[name_column_group].unique():
+        df_pct[f'q_{group}'] = np.percentile(df.loc[df[name_column_group]==group, name_column_metric].values, range(100))
+    fig, ax = plt.subplots(figsize=(5, 4))
+    plt.scatter(x=df_pct.columns[0], y=df_pct.columns[1], data=df_pct, label='Actual fit')
+    image = sns.lineplot(x=df_pct.columns[0], y=df_pct.columns[0], data=df_pct, color='r', label='Line of perfect fit', ax=ax).get_figure()
+    plt.xlabel(f'Quantile {df_pct.columns[0]} group')
+    plt.ylabel(f'Quantile {df_pct.columns[1]} group')
+    plt.legend()
+    plt.title(f"QQ plot для {name_column_metric}")
+    plt.figure(figsize=(5,4))
+    plt.close(image)
+    return image
+    
+def get_boxplot(df: pd.DataFrame, name_column_group: str, name_column_metric: str):
+    fig, ax = plt.subplots(figsize=(5, 4))
+    image = sns.boxplot(data=df, x=name_column_group, y=name_column_metric, ax=ax).get_figure()
+    plt.title(f"Ящик с усами для {name_column_metric}")
+    plt.figure(figsize=(5,4))
+    plt.close(image)
+    return image
+
+def get_image(df: pd.DataFrame, name_column_group: str, cont_name_column_metric_list: list, desc_name_column_metric_list: list):
+    list_image_cont_hist = []
+    list_image_cont_kde = []
+    list_image_cont_qq = []
+    list_image_cont_boxplot = []
+    list_image_desc = []
+    for name_column_cont in cont_name_column_metric_list:
+        list_image_cont_hist.append(get_hist(df, name_column_group, name_column_cont, 'Continuous'))
+        list_image_cont_kde.append(get_kde(df, name_column_group, name_column_cont))
+        list_image_cont_qq.append(get_qq(df, name_column_group, name_column_cont))
+        list_image_cont_boxplot.append(get_boxplot(df, name_column_group, name_column_cont))
+    for name_column_desc in desc_name_column_metric_list:
+        list_image_desc.append(get_hist(df, name_column_group, name_column_cont, 'Discrete'))
+    return list_image_cont_hist, list_image_cont_kde, list_image_cont_qq, list_image_cont_boxplot, list_image_desc
+
+def aa_p_val(df: pd.DataFrame, name_column_group: str, name_column_value: str, type_value:str):
+    result = []
+    for i in range(2000):
+        p_val = get_p_value(type_value, df, name_column_group, name_column_value, False)
+        result.append(p_val)
+    df_p_val = pd.DataFrame({name_column_value:result})
+    fig, ax = plt.subplots(figsize=(5, 4))
+    image = sns.histplot(data = df, x=name_column_value, ax=ax).get_figure()
+    plt.title(f"Гистограмма распределения p_value для {name_column_value}")
+    plt.close(image)
+    return image
+    
+def get_image_aa(df: pd.DataFrame, name_column_group: str, cont_name_column_metric_list: list, desc_name_column_metric_list: list, rank_name_column_metric_list: list):
+    list_image_cont = []
+    list_image_desc = []
+    list_image_rank = []
+    for name_column_cont in cont_name_column_metric_list:
+        list_image_cont.append(aa_p_val(df, name_column_group, name_column_cont, "Continuous"))
+    for name_column_desc in desc_name_column_metric_list:
+        list_image_desc.append(aa_p_val(df, name_column_group, name_column_desc, "Discrete"))
+    for name_column_rank in list_image_rank:
+        list_image_rank.append(aa_p_val(df, name_column_group, name_column_rank, "Ranking"))
+    return list_image_cont, list_image_desc, list_image_rank
+    
+# def get_conclusion(df: pd.DataFrame, name_column_group: str, name_column_metric: str, p_val: float):
+#     """
+#     :param df: DataFrame
+#     :param name_column_group: name column group
+#     :param name_column_metric: name column metric
+#     :param p_val: p_value
+#     """
+#     group_names = list(df[name_column_group].unique())
+#     name_1 = group_names[0]
+#     name_2 = group_names[1]
+#     df_group_1 = df[df[name_column_group] == name_1]
+#     df_group_2 = df[df[name_column_group] == name_2]
+#     mean_group_1 = df_group_1[name_column_metric].mean()
+#     mean_group_2 = df_group_2[name_column_metric].mean()
+#     if p_val < 0.05:
+#         return f'''Среднее в группе {name_1}: {round(mean_group_1, 4)}.\nСреднее в группе {name_2}: {round(mean_group_2, 4)}.\nРазличия в средних статистически значимы.'''
+#     else:
+#         return f'''Среднее в группе {name_1}: {round(mean_group_1, 4)}.\nСреднее в группе {name_2}: {round(mean_group_2, 4)}.\nРазличия в средних статистически незначимы.'''
