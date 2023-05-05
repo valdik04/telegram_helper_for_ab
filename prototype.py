@@ -75,9 +75,16 @@ async def alpha_ss(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         ALPHA_SS = float(update.message.text)
     except:
-        raise ValueError("Alpha cant convert to float")
+        await update.message.reply_text(
+            "Введено некорректное значение. Введи привильное значение уровня значимости(alpha)\n"
+            "Если не знаешь, то будем использовать значение по-умолчанию(0.05), введи 0.05.\n")
+        return ALPHA_SSR
+        
     if ALPHA_SS >= 1 or ALPHA_SS <= 0:
-        raise ValueError("Incorrect alpha")
+        await update.message.reply_text(
+            "Введено некорректное значение. Введи правильное значение уровня значимости(alpha)\n"
+            "Если не знаешь, то будем использовать значение по-умолчанию(0.05), введи 0.05.\n")
+        return ALPHA_SSR
     user = update.message.from_user
     logger.info("alpha of %s: %s", user.first_name, ALPHA_SS)
     
@@ -95,17 +102,23 @@ async def beta_ss(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     try:
         BETA_SS = float(update.message.text)
     except:
-        raise ValueError("Beta cant convert to float")
+        await update.message.reply_text(
+            "Введено некорректное значение. Введи правильное значение мощности(beta) теста.\n"
+            "Если не знаешь, то будем использовать значение по-умолчанию(0.8), введи 0.8.\n")
+        return BETA_SSR
     if BETA_SS >= 1 or BETA_SS <= 0:
-        raise ValueError("Incorrect beta")
+        await update.message.reply_text(
+            "Введено некорректное значение. Введи правильное значение мощности(beta) теста.\n"
+            "Если не знаешь, то будем использовать значение по-умолчанию(0.8), введи 0.8.\n")
+        return BETA_SSR
     user = update.message.from_user
     logger.info("beta of %s: %s", user.first_name, BETA_SS)
     
-    reply_keyboard = [['Знаю стандартное отклонение в данных', 'Помочь определить']]
+    reply_keyboard = [['Знаю стандартное отклонение и среднее в данных', 'Помочь определить']]
     await update.message.reply_text(
         "Отлично!.\n\n"
         "Отправь /cancel чтобы прекратить общение со мной.\n\n"
-        "Далее необходимо определить стандартное отклонение в данных.\n",
+        "Далее необходимо определить стандартное отклонение среднее в данных.\n",
         reply_markup=ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=True, input_field_placeholder="Metric?"
         ),
@@ -172,15 +185,22 @@ async def path_ss(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def columns_name_ss(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     global STD_SS
     global MEAN_DATA_SS
+    global PATH_SS
+    user = update.message.from_user
     column_name = update.message.text
     df = pd.read_csv(PATH_SS)
+    
+    if column_name not in df.columns:
+        await update.message.reply_text('Неверное название колонки со значениями. Введите еще раз.')
+        return COLUMN_NAME_SSR
+    
     try:
         STD_SS = df[column_name].std()
-        user = update.message.from_user
         logger.info("std of %s: %s", user.first_name, STD_SS)
         MEAN_DATA_SS = df[column_name].mean()
     except:
-        raise ValueError("Incorrect data")
+        await update.message.reply_text('Ошибка в данных. Начните сначала')
+        return ConversationHandler.END
     await update.message.reply_text(
             "Отлично!.\n\n"
             "Отправь /cancel чтобы прекратить общение со мной.\n\n"
@@ -268,12 +288,13 @@ async def group_column_ab(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     user = update.message.from_user
     GROUP_COLUMN_M = update.message.text
     logger.info("Group column of %s: %s", user.first_name, GROUP_COLUMN_M)
-        
     if GROUP_COLUMN_M not in DATAFRAME_M.columns:
-        await update.message.reply_text('Неверное название колонки с группами. Необходимо начать сначала.')
-        return ConversationHandler.END
+        await update.message.reply_text('Неверное название колонки с группами. Введите еще раз.')
+        return GROUP_COLUMN
     DATAFRAME_M, message = library_for_ab.clear_data_group_columns(DATAFRAME_M, GROUP_COLUMN_M)
-    
+    if DATAFRAME_M.empty:
+        await update.message.reply_text(message)
+        return ConversationHandler.END
     reply_keyboard = [[ "Discrete", "Continuous", 'Ranking']]
     await update.message.reply_text(message + 
         "\n\nСкажи мне, какие метрики мы будем отслеживать.\n"
@@ -305,13 +326,14 @@ async def metric_ab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 async def value_column_ab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     global VALUES_COLUMN_M
     global DATAFRAME_M
+    global IS_OUTLIERS_CONT_METRIC
     is_outliers = False
     user = update.message.from_user
     VALUES_COLUMN_M = update.message.text
     logger.info("value_columns of %s: %s", user.first_name, VALUES_COLUMN_M)
     if VALUES_COLUMN_M not in DATAFRAME_M.columns:
-        await update.message.reply_text('Неверное название колонки со значениями. Необходимо начать сначала.')
-        return ConversationHandler.END
+        await update.message.reply_text('Неверное название колонки со значениями. Введите еще раз.')
+        return VALUES_COLUMN
     
     if METRIC_M == "Discrete":
         DESC_METRIC_VALUE_COLUMNS.append(VALUES_COLUMN_M)
@@ -320,7 +342,7 @@ async def value_column_ab(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     elif METRIC_M == "Ranking":
         RANK_METRIC_VALUE_COLUMNS.append(VALUES_COLUMN_M)
         
-    DATAFRAME_M, message, have_missing = library_for_ab.clear_data(DATAFRAME_M, GROUP_COLUMN_M, VALUES_COLUMN_M)
+    DATAFRAME_M, message, have_missing = library_for_ab.clear_data(DATAFRAME_M, GROUP_COLUMN_M, VALUES_COLUMN_M, METRIC_M)
     if DATAFRAME_M.shape[0] == 0:
         await update.message.reply_text(message + ' Необходимо начать сначала.')
         return ConversationHandler.END
@@ -339,7 +361,7 @@ async def value_column_ab(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             is_outliers += flag_outliers
         if is_outliers:
             reply_keyboard = [[ "Удалить", "Максимальное и минимальное", 'Среднее', 'Медиану', 'Оставить']]
-            await update.message.reply_text(message_miss + "\n\n" + message + " \n\nЕсть выбросы. Подскажи, что мне с ними сделать? Выбери из предложенного:\n",
+            await update.message.reply_text(message + " \n\nЕсть выбросы. Подскажи, что мне с ними сделать? Выбери из предложенного:\n",
             reply_markup=ReplyKeyboardMarkup(
                 reply_keyboard, one_time_keyboard=True),)
             return CHANGE_OUTLIERS
@@ -355,6 +377,7 @@ async def value_column_ab(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     
 async def decision_missing_ab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     global DATAFRAME_M
+    global IS_OUTLIERS_CONT_METRIC
     is_outliers = False
     user = update.message.from_user
     decision_miss_value = update.message.text
@@ -384,9 +407,10 @@ async def decision_missing_ab(update: Update, context: ContextTypes.DEFAULT_TYPE
     
 async def change_outliers_ab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     global DATAFRAME_M
+    global IS_OUTLIERS_CONT_METRIC
     user = update.message.from_user
     decision = update.message.text
-    DATAFRAME_M, message, is_outliers = library_for_ab.change_outliers(DATAFRAME_M, VALUES_COLUMN_M, decision)
+    DATAFRAME_M, message, is_outliers = library_for_ab.change_outliers(DATAFRAME_M, VALUES_COLUMN_M, GROUP_COLUMN_M, decision)
     IS_OUTLIERS_CONT_METRIC.append(is_outliers)
     reply_keyboard = [[ "Да", "Нет"]]
     await update.message.reply_text(message+ " \n\nХочешь ли ты еще добавить данные для сравнения?\n",
@@ -399,14 +423,18 @@ async def p_value_aa(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     global CONT_METRIC_VALUE_COLUMNS
     global DESC_METRIC_VALUE_COLUMNS
     global RANK_METRIC_VALUE_COLUMNS
+    global IS_OUTLIERS_CONT_METRIC
+    
+    CONT_METRIC_VALUE_COLUMNS = list(set(CONT_METRIC_VALUE_COLUMNS))
+    DESC_METRIC_VALUE_COLUMNS = list(set(DESC_METRIC_VALUE_COLUMNS))
+    RANK_METRIC_VALUE_COLUMNS = list(set(RANK_METRIC_VALUE_COLUMNS))
     
     user = update.message.from_user
     decision_more_metric = update.message.text
     
     if True in IS_OUTLIERS_CONT_METRIC:
         await update.message.reply_text(
-            "К сожалению, я не могу провести A/A тест, так как в данных есть выбросы, давай начнем с начала и избавимся от выбросов.")
-        return ConversationHandler.END
+            "Осторожно! В данных есть выбросы, оставляй их только, если знаешь, что делаешь.")
     
     
     
@@ -424,37 +452,38 @@ async def p_value_aa(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return METRIC
     
     if CONT_METRIC_VALUE_COLUMNS != []:
-        final_dataset_cont = DATAFRAME_M.groupby(GROUP_COLUMN_M, as_index=0)[CONT_METRIC_VALUE_COLUMNS].mean()
+        final_dataset_cont = round(DATAFRAME_M.groupby(GROUP_COLUMN_M, as_index=0)[CONT_METRIC_VALUE_COLUMNS].mean(), 3)
         dict_row = {GROUP_COLUMN_M:['diff', 'p_val']}
         for i in range(len(CONT_METRIC_VALUE_COLUMNS)):
             value_columns = CONT_METRIC_VALUE_COLUMNS[i]
             is_outliers = IS_OUTLIERS_CONT_METRIC[i]
             p_value, _, _ = library_for_ab.get_p_value("Continuous", DATAFRAME_M, GROUP_COLUMN_M, value_columns, is_outliers)
             dict_row[value_columns] = [round((final_dataset_cont[value_columns][1]/final_dataset_cont[value_columns][0]-1)*100, 2), round(p_value, 3)]
-        final_dataset_cont = final_dataset_cont.append(pd.DataFrame(dict_row))
+        final_dataset_cont = pd.concat([final_dataset_cont, pd.DataFrame(dict_row)])
     
     if DESC_METRIC_VALUE_COLUMNS != []:
         final_datasets_desc_list = []
         for i in range(len(DESC_METRIC_VALUE_COLUMNS)):
             value_columns = DESC_METRIC_VALUE_COLUMNS[i]
-            final_datasets_desc = DATAFRAME_M.pivot_table(index=GROUP_COLUMN_M, columns=value_columns, values='count')
-            final_datasets_desc = (final_datasets_desc.T / final_datasets_desc.T.sum()).T
+            DATAFRAME_M['temp'] = 0
+            final_datasets_desc = DATAFRAME_M.pivot_table(index=GROUP_COLUMN_M, columns=value_columns, values='temp', aggfunc='count')
+            final_datasets_desc = round((final_datasets_desc.T / final_datasets_desc.T.sum()).T, 3)
             p_value, _, _ = library_for_ab.get_p_value("Discrete", DATAFRAME_M, GROUP_COLUMN_M, value_columns, False)
             dict_desc_diff = {GROUP_COLUMN_M:['diff', 'p_val']}
             for desc_obj in final_datasets_desc.columns:
                 dict_desc_diff[desc_obj] = [round((final_datasets_desc[desc_obj][1]/final_datasets_desc[desc_obj][0]-1)*100, 2), round(p_value, 3)]
             final_datasets_desc = final_datasets_desc.reset_index()
-            final_datasets_desc = final_datasets_desc.append(pd.DataFrame(dict_desc_diff))
-        final_datasets_desc_list.append(final_datasets_desc)
+            final_datasets_desc = pd.concat([final_datasets_desc, pd.DataFrame(dict_desc_diff)])
+            final_datasets_desc_list.append(final_datasets_desc)
     
     if RANK_METRIC_VALUE_COLUMNS != []:
-        final_dataset_rank = DATAFRAME_M.groupby(GROUP_COLUMN_M, as_index=0)[RANK_METRIC_VALUE_COLUMNS].mean()
+        final_dataset_rank = round(DATAFRAME_M.groupby(GROUP_COLUMN_M, as_index=0)[RANK_METRIC_VALUE_COLUMNS].mean(), 3)
         dict_p_val = {GROUP_COLUMN_M:['p_val']}
         for i in range(len(RANK_METRIC_VALUE_COLUMNS)):
             value_columns = RANK_METRIC_VALUE_COLUMNS[i]
             p_value, _, _ = library_for_ab.get_p_value("Ranking", DATAFRAME_M, GROUP_COLUMN_M, value_columns, False)
             dict_p_val[value_columns] = [p_value]
-        final_dataset_rank = final_dataset_rank.append(pd.DataFrame(dict_p_val))
+        final_dataset_rank = pd.concat([final_dataset_rank, pd.DataFrame(dict_p_val)])
     
     path = 'result/result_' + str(user.id) + '.xlsx'
     with pd.ExcelWriter(path, engine='xlsxwriter') as writer:
@@ -462,12 +491,14 @@ async def p_value_aa(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             final_dataset_cont.to_excel(writer, sheet_name='Сводная таблица', startrow=1, startcol=1, index=False)
             
         if RANK_METRIC_VALUE_COLUMNS != []:
-            final_dataset_rank.to_excel(writer, sheet_name='Сводная таблица', startrow=6, startcol=1, index=False)
+            final_dataset_rank.to_excel(writer, sheet_name='Сводная таблица', startrow=7, startcol=1, index=False)
         
         if DESC_METRIC_VALUE_COLUMNS != []:
             for i in range(len(final_datasets_desc_list)):
                 df = final_datasets_desc_list[i]
-                df.to_excel(writer, sheet_name='Сводная таблица', startrow=11 + i*5, startcol=1, index=False)
+                df.to_excel(writer, sheet_name='Сводная таблица', startrow=13 + i*5, startcol=1, index=False)
+                
+                
         list_image_cont_hist, list_image_cont_kde, list_image_cont_qq, list_image_cont_boxplot, list_image_desc = library_for_ab.get_image(DATAFRAME_M, GROUP_COLUMN_M, CONT_METRIC_VALUE_COLUMNS, DESC_METRIC_VALUE_COLUMNS)
         list_image_cont_aa, list_image_desc_aa, list_image_rank_aa = library_for_ab.get_image_aa(DATAFRAME_M, GROUP_COLUMN_M, CONT_METRIC_VALUE_COLUMNS, DESC_METRIC_VALUE_COLUMNS, RANK_METRIC_VALUE_COLUMNS)
         
@@ -519,6 +550,7 @@ async def p_value_aa(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         filename="result.xlsx"
     )
     os.remove(path)
+    IS_OUTLIERS_CONT_METRIC = []
     RANK_METRIC_VALUE_COLUMNS = []
     DESC_METRIC_VALUE_COLUMNS = []
     CONT_METRIC_VALUE_COLUMNS = []
@@ -535,7 +567,12 @@ async def p_value_ab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     global CONT_METRIC_VALUE_COLUMNS
     global DESC_METRIC_VALUE_COLUMNS
     global RANK_METRIC_VALUE_COLUMNS
-
+    global IS_OUTLIERS_CONT_METRIC
+    
+    CONT_METRIC_VALUE_COLUMNS = list(set(CONT_METRIC_VALUE_COLUMNS))
+    DESC_METRIC_VALUE_COLUMNS = list(set(DESC_METRIC_VALUE_COLUMNS))
+    RANK_METRIC_VALUE_COLUMNS = list(set(RANK_METRIC_VALUE_COLUMNS))
+    
     user = update.message.from_user
     decision_more_metric = update.message.text
     if decision_more_metric == 'Да':
@@ -552,37 +589,38 @@ async def p_value_ab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         return METRIC
     
     if CONT_METRIC_VALUE_COLUMNS != []:
-        final_dataset_cont = DATAFRAME_M.groupby(GROUP_COLUMN_M, as_index=0)[CONT_METRIC_VALUE_COLUMNS].mean()
+        final_dataset_cont = round(DATAFRAME_M.groupby(GROUP_COLUMN_M, as_index=0)[CONT_METRIC_VALUE_COLUMNS].mean(), 3)
         dict_row = {GROUP_COLUMN_M:['diff', 'p_val']}
         for i in range(len(CONT_METRIC_VALUE_COLUMNS)):
             value_columns = CONT_METRIC_VALUE_COLUMNS[i]
             is_outliers = IS_OUTLIERS_CONT_METRIC[i]
             p_value, _, _ = library_for_ab.get_p_value("Continuous", DATAFRAME_M, GROUP_COLUMN_M, value_columns, is_outliers)
             dict_row[value_columns] = [round((final_dataset_cont[value_columns][1]/final_dataset_cont[value_columns][0]-1)*100, 2), round(p_value, 3)]
-        final_dataset_cont = final_dataset_cont.append(pd.DataFrame(dict_row))
+        final_dataset_cont = pd.concat([final_dataset_cont, pd.DataFrame(dict_row)])
     
     if DESC_METRIC_VALUE_COLUMNS != []:
         final_datasets_desc_list = []
         for i in range(len(DESC_METRIC_VALUE_COLUMNS)):
             value_columns = DESC_METRIC_VALUE_COLUMNS[i]
-            final_datasets_desc = DATAFRAME_M.pivot_table(index=GROUP_COLUMN_M, columns=value_columns, values='count')
+            DATAFRAME_M['temp'] = 0
+            final_datasets_desc = round(DATAFRAME_M.pivot_table(index=GROUP_COLUMN_M, columns=value_columns, values='temp', aggfunc='count'), 3)
             final_datasets_desc = (final_datasets_desc.T / final_datasets_desc.T.sum()).T
             p_value, _, _ = library_for_ab.get_p_value("Discrete", DATAFRAME_M, GROUP_COLUMN_M, value_columns, False)
             dict_desc_diff = {GROUP_COLUMN_M:['diff', 'p_val']}
             for desc_obj in final_datasets_desc.columns:
                 dict_desc_diff[desc_obj] = [round((final_datasets_desc[desc_obj][1]/final_datasets_desc[desc_obj][0]-1)*100, 2), round(p_value, 3)]
             final_datasets_desc = final_datasets_desc.reset_index()
-            final_datasets_desc = final_datasets_desc.append(pd.DataFrame(dict_desc_diff))
-        final_datasets_desc_list.append(final_datasets_desc)
+            final_datasets_desc = pd.concat([final_datasets_desc, pd.DataFrame(dict_desc_diff)])
+            final_datasets_desc_list.append(final_datasets_desc)
     
     if RANK_METRIC_VALUE_COLUMNS != []:
-        final_dataset_rank = DATAFRAME_M.groupby(GROUP_COLUMN_M, as_index=0)[RANK_METRIC_VALUE_COLUMNS].mean()
+        final_dataset_rank = round(DATAFRAME_M.groupby(GROUP_COLUMN_M, as_index=0)[RANK_METRIC_VALUE_COLUMNS].mean(), 3)
         dict_p_val = {GROUP_COLUMN_M:['p_val']}
         for i in range(len(RANK_METRIC_VALUE_COLUMNS)):
             value_columns = RANK_METRIC_VALUE_COLUMNS[i]
             p_value, _, _ = library_for_ab.get_p_value("Ranking", DATAFRAME_M, GROUP_COLUMN_M, value_columns, False)
             dict_p_val[value_columns] = [p_value]
-        final_dataset_rank = final_dataset_rank.append(pd.DataFrame(dict_p_val))
+        final_dataset_rank = pd.concat([final_dataset_rank, pd.DataFrame(dict_p_val)])
     
     path = 'result/result_' + str(user.id) + '.xlsx'
     with pd.ExcelWriter(path, engine='xlsxwriter') as writer:
@@ -590,12 +628,12 @@ async def p_value_ab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             final_dataset_cont.to_excel(writer, sheet_name='Сводная таблица', startrow=1, startcol=1, index=False)
             
         if RANK_METRIC_VALUE_COLUMNS != []:
-            final_dataset_rank.to_excel(writer, sheet_name='Сводная таблица', startrow=6, startcol=1, index=False)
+            final_dataset_rank.to_excel(writer, sheet_name='Сводная таблица', startrow=7, startcol=1, index=False)
         
         if DESC_METRIC_VALUE_COLUMNS != []:
             for i in range(len(final_datasets_desc_list)):
                 df = final_datasets_desc_list[i]
-                df.to_excel(writer, sheet_name='Сводная таблица', startrow=11 + i*5, startcol=1, index=False)
+                df.to_excel(writer, sheet_name='Сводная таблица', startrow=13 + i*6, startcol=1, index=False)
         list_image_cont_hist, list_image_cont_kde, list_image_cont_qq, list_image_cont_boxplot, list_image_desc = library_for_ab.get_image(DATAFRAME_M, GROUP_COLUMN_M, CONT_METRIC_VALUE_COLUMNS, DESC_METRIC_VALUE_COLUMNS)
         
         pd.DataFrame().to_excel(writer, sheet_name='Визуализация', startrow=1, startcol=1, index=False)
@@ -623,7 +661,7 @@ async def p_value_ab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         os.remove(f'image/image_boxplot_'+ str(line)+ '_'+ str(user.id) +'.png')
         line += 20
     for i in range(len(list_image_desc)):
-        os.remove(f'image/image_desc_hist_'+ str(line)+ '_'+ str(user.id) +'.png')
+        line += 20
         os.remove(f'image/image_desc_hist_'+ str(line)+ '_'+ str(user.id) +'.png')
     
     await update.message.reply_document(
@@ -631,6 +669,7 @@ async def p_value_ab(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         filename="result.xlsx"
     )
     os.remove(path)
+    IS_OUTLIERS_CONT_METRIC = []
     RANK_METRIC_VALUE_COLUMNS = []
     DESC_METRIC_VALUE_COLUMNS = []
     CONT_METRIC_VALUE_COLUMNS = []
@@ -840,7 +879,7 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
 def main() -> None:
     """Run the bot."""
     # Create the Application and pass it your bot's token.
-    application = Application.builder().token("5871285096:AAFQqR0yppdxsW0tn29liLpwihrUHLFtXBw").read_timeout(30).write_timeout(30).connect_timeout(30).build()
+    application = Application.builder().token("5871285096:AAFQqR0yppdxsW0tn29liLpwihrUHLFtXBw").read_timeout(60).write_timeout(60).connect_timeout(60).build()
     
     conv_handler_start = ConversationHandler(
         entry_points=[CommandHandler("start", start)],
@@ -879,7 +918,7 @@ def main() -> None:
         fallbacks=[CommandHandler("cancel", cancel)],
     )
     
-    conv_handler_ab_test = ConversationHandler(
+    conv_handler_aa_test = ConversationHandler(
         entry_points=[CommandHandler("aa_test", aa_test_aa)],
         states={
             METRIC: [MessageHandler(filters.Regex("^(Discrete|Continuous|Ranking)$"), metric_ab)],
@@ -896,6 +935,7 @@ def main() -> None:
     application.add_handler(conv_handler_start)
     application.add_handler(conv_handler_sample_size)
     application.add_handler(conv_handler_ab_test)
+    application.add_handler(conv_handler_aa_test)
 
     # Run the bot until the user presses Ctrl-C
     application.run_polling()

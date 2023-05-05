@@ -11,52 +11,52 @@ import math
 import seaborn as sns
 
 
-def get_sigma(metric: str, p:float, std:pd.DataFrame) -> float:
-    """
-    :param metric: name metric
-    :return: standard deviation
-    """
-    if metric == 'CR' or metric == 'Discrete':
-        # print("Введите базовое значение (конверсии)")
-        p = float(input())
-        return (p*(1-p))**0.5
-    else:
-        # print("Введите стандартное отклонение(std)")
-        std = float(input())
-        return std
+# def get_sigma(metric: str, p:float, std:pd.DataFrame) -> float:
+#     """
+#     :param metric: name metric
+#     :return: standard deviation
+#     """
+#     if metric == 'CR' or metric == 'Discrete':
+#         # print("Введите базовое значение (конверсии)")
+#         p = float(input())
+#         return (p*(1-p))**0.5
+#     else:
+#         # print("Введите стандартное отклонение(std)")
+#         std = float(input())
+#         return std
 
 
-def effect_size_func(mu_control: float, mu_experiment: float, sigma: float) -> float:
-    """
-    :param mu_control: mean metric in control group
-    :param mu_experiment: mean metric in experiment group
-    :param sigma: Standard deviation
-    :return: effect_size
-    """
-    return np.abs(mu_experiment - mu_control) / sigma
+# def effect_size_func(mu_control: float, mu_experiment: float, sigma: float) -> float:
+#     """
+#     :param mu_control: mean metric in control group
+#     :param mu_experiment: mean metric in experiment group
+#     :param sigma: Standard deviation
+#     :return: effect_size
+#     """
+#     return np.abs(mu_experiment - mu_control) / sigma
 
 
-def min_sample_size(effect_size: float, power=0.8, alpha=0.05) -> int:
-    """
-    :param effect_size: from effect_size_func
-    :param power: power test
-    :param alpha: significant level
-    :return: minimal sample size for test
-    """
-    # standard normal distribution to determine z-values
-    standard_norm = scs.norm(0, 1)
+# def min_sample_size(effect_size: float, power=0.8, alpha=0.05) -> int:
+#     """
+#     :param effect_size: from effect_size_func
+#     :param power: power test
+#     :param alpha: significant level
+#     :return: minimal sample size for test
+#     """
+#     # standard normal distribution to determine z-values
+#     standard_norm = scs.norm(0, 1)
 
-    # find Z_beta from desired power
-    z_beta = standard_norm.ppf(power)
+#     # find Z_beta from desired power
+#     z_beta = standard_norm.ppf(power)
 
-    # find Z_alpha
-    z_alpha = standard_norm.ppf(1-alpha/2)
+#     # find Z_alpha
+#     z_alpha = standard_norm.ppf(1-alpha/2)
 
-    # average of probabilities from both groups
+#     # average of probabilities from both groups
 
-    sample_size = (2 * (z_beta + z_alpha)**2 / effect_size**2)
+#     sample_size = (2 * (z_beta + z_alpha)**2 / effect_size**2)
 
-    return round(sample_size)
+#     return round(sample_size)
 
 def calculate_sample_size(delta, sigma, alpha=0.05, beta=0.8,  ratio=1):
     # alpha - уровень значимости
@@ -94,7 +94,7 @@ def clear_data_group_columns(df: pd.DataFrame, column_group: str):
         message += f"Пропущенные значения были удалены из столбца {column_group}."
     return df, message
 
-def clear_data(df: pd.DataFrame, column_group: str, column_value: str):
+def clear_data(df: pd.DataFrame, column_group: str, column_value: str, type_data: str):
     """
     :param df: DataFrame
     :param column_group: name column with group
@@ -103,23 +103,23 @@ def clear_data(df: pd.DataFrame, column_group: str, column_value: str):
     """
     message = ''
 #   fix types
+    if type_data == 'Continuous' or type_data == 'Ranking':
+        if df[column_value].dtype == 'O':
+            try:
+                df[column_value] = df[column_value].dropna().apply(lambda x: x.replace(',', '.'))
+                df[column_value] = df[column_value].astype('float')
+            except:
+                message = f'Ошибка в записи данных: значения столбца {column_value} имеют неверный формат.'
+                return pd.DataFrame(), message, False
 
-    if df[column_value].dtype == 'O':
-        try:
-            df[column_value] = df[column_value].dropna().apply(lambda x: x.replace(',', '.'))
+        elif df[column_value].dtype == 'int64' or df[column_value].dtype == 'int32':
             df[column_value] = df[column_value].astype('float')
-        except:
+        elif df[column_value].dtype != 'float':
             message = f'Ошибка в записи данных: значения столбца {column_value} имеют неверный формат.'
-            return pd.DataFrame(), message
+            return pd.DataFrame(), message, False
 
-    elif df[column_value].dtype == 'int64' or df[column_value].dtype == 'int32':
-        df[column_value] = df[column_value].astype('float')
-    elif df[column_value].dtype != 'float':
-        message = f'Ошибка в записи данных: значения столбца {column_value} имеют неверный формат.'
-        return pd.DataFrame(), message
-    # работа с пропусками
-    
-    
+        
+        
     if df[column_value].isna().sum():
         message += f"Процент пропущенных значений в столбце {column_value} " + \
                    str((df[column_value].isna().sum())/(df.shape[0]) * 100) + "%."
@@ -131,7 +131,11 @@ def clear_data(df: pd.DataFrame, column_group: str, column_value: str):
 #         'median', если приравнять к медиане ({df[column_value].median()})""")
 #         <digit>, если заменить на <digit>
     have_missing = df[column_value].isna().sum() > 0
+
+        
+    # работа с пропусками
     return df, message, have_missing
+
 
 def missing_values(df: pd.DataFrame, column_group: str, column_value: str, str_val='del'):
     message = ''
@@ -232,6 +236,7 @@ def change_outliers(df: pd.DataFrame, name_column_metric: str, name_column_group
             message = "\nВыбросы были заменены на медиану."
         else:
             flag_outliers = True
+            message = "\nВыбросы остались."
         df_result = pd.concat([df_result, data])
     return df_result, message, flag_outliers
 
@@ -239,7 +244,7 @@ def change_outliers(df: pd.DataFrame, name_column_metric: str, name_column_group
 def get_bootstrap(
     data_column_1,  # числовые значения первой выборки
     data_column_2,  # числовые значения второй выборки
-    boot_it=5000,  # количество бутстрап-подвыборок
+    boot_it=3000,  # количество бутстрап-подвыборок
     statistic=np.mean,  # интересующая нас статистика
     bootstrap_conf_level=0.95  # уровень значимости
 ):
@@ -294,6 +299,42 @@ def get_bootstrap(
     return {"boot_data": boot_data,
             "quants": quants,
             "p_value": p_value}
+
+
+def get_bootstrap_for_aa(
+    data_column_1,  # числовые значения первой выборки
+    data_column_2,  # числовые значения второй выборки,
+    type_data,
+    boot_it=2000,  # количество бутстрап-подвыборок
+    statistic=np.mean,  # интересующая нас статистика
+    bootstrap_conf_level=0.95  # уровень значимости
+):
+    p_val_data = []
+    for i in range(boot_it):  # извлекаем подвыборки
+        samples_1 = data_column_1.sample(
+            len(data_column_1),
+            replace=True  # параметр возвращения
+        ).values
+
+        samples_2 = data_column_2.sample(
+            len(data_column_1),
+            replace=True
+        ).values
+        if type_data == 'Continuous':
+            t_test_result = pg.ttest(samples_1, samples_2)
+            p_val = round(t_test_result['p-val'][0], 4)
+            p_val_data.append(p_val) 
+        elif type_data == 'Discrete':
+            df = pd.DataFrame({'name_column_group':['a1' for i in range(len(data_column_1))] + ['a2' for i in range(len(data_column_2))], 'name_column_metric':list(samples_1) + list(samples_2)})
+            _, _, stats = pg.chi2_independence(df, x='name_column_group', y='name_column_metric')
+            p_val = stats.round(3).query('test == "pearson"')['pval'][0]
+            p_val_data.append(p_val)
+        else:
+            p_val = pg.mwu(samples_1, samples_2,
+                           alternative='two-sided')['p-val'][0]
+            p_val_data.append(p_val)
+
+    return p_val_data
 
 
 def get_p_value(metric: str, df: pd.DataFrame, name_column_group: str, name_column_metric: str, have_outliers: bool):
@@ -373,8 +414,7 @@ def get_hist(df: pd.DataFrame, name_column_group: str, name_column_metric: str, 
 
 def get_kde(df: pd.DataFrame, name_column_group: str, name_column_metric: str):
     fig, ax = plt.subplots(figsize=(5, 4))
-    image = sns.histplot(x=name_column_metric, data=df, hue=name_column_group, bins=len(df), stat="density",
-      element="step", fill=False, cumulative=True, common_norm=False, ax=ax).get_figure()
+    image = sns.kdeplot(x=name_column_metric, data=df, hue=name_column_group, common_norm=False).get_figure()
     plt.title(f"Ядерная оценка плотности для {name_column_metric}")
     plt.figure(figsize=(5,4))
     plt.close(image)
@@ -416,17 +456,15 @@ def get_image(df: pd.DataFrame, name_column_group: str, cont_name_column_metric_
         list_image_cont_qq.append(get_qq(df, name_column_group, name_column_cont))
         list_image_cont_boxplot.append(get_boxplot(df, name_column_group, name_column_cont))
     for name_column_desc in desc_name_column_metric_list:
-        list_image_desc.append(get_hist(df, name_column_group, name_column_cont, 'Discrete'))
+        list_image_desc.append(get_hist(df, name_column_group, name_column_desc, 'Discrete'))
     return list_image_cont_hist, list_image_cont_kde, list_image_cont_qq, list_image_cont_boxplot, list_image_desc
 
 def aa_p_val(df: pd.DataFrame, name_column_group: str, name_column_value: str, type_value:str):
     result = []
-    for i in range(2000):
-        p_val = get_p_value(type_value, df, name_column_group, name_column_value, False)
-        result.append(p_val)
+    result = get_bootstrap_for_aa(df[df[name_column_group] == df[name_column_group].unique()[0]][name_column_value], df[df[name_column_group] == df[name_column_group].unique()[1]][name_column_value],type_value)
     df_p_val = pd.DataFrame({name_column_value:result})
     fig, ax = plt.subplots(figsize=(5, 4))
-    image = sns.histplot(data = df, x=name_column_value, ax=ax).get_figure()
+    image = sns.histplot(data = df_p_val, x=name_column_value, ax=ax, bins=100).get_figure()
     plt.title(f"Гистограмма распределения p_value для {name_column_value}")
     plt.close(image)
     return image
