@@ -50,9 +50,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Start."""
     await update.message.reply_text(
         "Привет! Я помогу тебе с проведением A/B теста.\n"
-        "Я могу помочь тебе с определением количество наблюдений в выборке. Для этого введите команду /sample_size\n\n"
-        "Еще я могу тебе помочь с анализом A/B теста. Для этого введите команду /ab_test\n\n"
-        "Также я могу помочь с анализом A/A теста. Для этого введите команду /aa_test\n\n"
+        "Я могу помочь с анализом A/A теста. Для этого введите команду /aa_test\n\n"
+        "Еще я могу помочь тебе с определением количество наблюдений в выборке. Для этого введите команду /sample_size\n\n"
+        "Также я могу тебе помочь с анализом A/B теста. Для этого введите команду /ab_test\n\n"
         "Отправь /cancel чтобы прекратить общение со мной.\n\n"
     )
     return ConversationHandler.END
@@ -198,6 +198,7 @@ async def columns_name_ss(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         STD_SS = df[column_name].std()
         logger.info("std of %s: %s", user.first_name, STD_SS)
         MEAN_DATA_SS = df[column_name].mean()
+        logger.info("std of %s: %s", user.first_name, MEAN_DATA_SS)
     except:
         await update.message.reply_text('Ошибка в данных. Начните сначала')
         return ConversationHandler.END

@@ -122,7 +122,7 @@ def clear_data(df: pd.DataFrame, column_group: str, column_value: str, type_data
         
     if df[column_value].isna().sum():
         message += f"Процент пропущенных значений в столбце {column_value} " + \
-                   str((df[column_value].isna().sum())/(df.shape[0]) * 100) + "%."
+                   str(round((df[column_value].isna().sum())/(df.shape[0]) * 100, 2)) + "%."
 #         Введите (без кавычек):\n
 #         'del', если удалить\n
 #         'min', если приравнять к минимальному ({df[column_value].min()})\n
